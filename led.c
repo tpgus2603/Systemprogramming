@@ -1,5 +1,8 @@
-// #include <wiringPiI2C.h>
-// #include <wiringPi.h>
+// https://fishpoint.tistory.com/7426 참고했읍니다.
+// https://www.waveshare.com/wiki/Raspberry_Pi_Tutorial_Series:_I2C I2c돌리기 전에 활성화 해야함! 이거보고 따라했음.
+
+#include <wiringPiI2C.h>
+#include <wiringPi.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -32,15 +35,15 @@ void typeChar(char val);
 int fd;  // seen by all subroutines
 
 int main()   {
-  printf("hi1\n", fd);
+
   if (wiringPiSetup () == -1) exit (1);
-  printf("hi2\n", fd);
+
   fd = wiringPiI2CSetup(I2C_ADDR);
-  printf("hi3\n", fd);
-  //printf("fd = %d ", fd);
-  printf("hi4\n", fd);
+
+  printf("fd = %d \n", fd);
+
   lcd_init(); // setup LCD
-  printf("hi5\n", fd);
+
   char array1[] = "Hello world!";
   char array2[] = "Smart Class!";
   
