@@ -80,7 +80,7 @@ int readadc(int fd, uint8_t channel){
 
 int main(int argc, char **argv){
     int result = 0;
-int fd = open(DEVICE, O_RDWR);
+    int fd = open(DEVICE, O_RDWR);
     if(fd <= 0){
         perror("Device open error");
         return -1;
