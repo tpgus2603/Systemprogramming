@@ -17,10 +17,51 @@ void error_handling(char* message) {
     fputc('\n', stderr);
     exit(1);
 }
+void sendsignal_opendoor(int sock) {
+    char buf[2] = "01";//opendoor api
+    write(sock, buf, sizeof(buf));
+    return;
+}
+void sendsignal_uptemp_warn(int sock) {
+    char buf[2] = "02";//warn api
+    write(sock, buf, sizeof(buf));
+    return;
+}
+void sendsignal_uptemp_critical(int sock) {
+    char buf[2] = "03";//critical api
+    write(sock, buf, sizeof(buf));
+    return;
+}
+void sendsignal_timeout(int sock) {
+    char buf[2] = "04";//opendoor api
+    write(sock, buf, sizeof(buf));
+    return;
+}
 
+void sendsignal_timewarn(int sock) {
+    char buf[2] = "05";//opendoor api
+    write(sock, buf, sizeof(buf));
+    return;
+}
 
+int t = 0;
+void* timer(void* data) {
+    int* sock = (int*)data;
+    while (1) {
+        t++;
+        if (t > 30) {
+            t = 0;
+            sendsignal_opendoor(*sock);
+        }
+        printf("%d\n", t);
+        usleep(1000000);
+    }
+}
 int main(int argc, char* argv[]) {
 
+    pthread_t p_thread;
+    int thr_id;
+    int status;
 
 
     int str_len; //read_len
@@ -33,7 +74,7 @@ int main(int argc, char* argv[]) {
 
     socklen_t clnt_addr_size;
     //read buffer
-    char msg[100];
+    char msg[6];
 
     if (argc != 2) {
         printf("Usage : %s <port>\n", argv[0]);
@@ -65,16 +106,21 @@ int main(int argc, char* argv[]) {
             error_handling("accept() error");
     }
     //client conection (actuator)
-    /*if (clnt_sock2 < 0) {
+    //if (clnt_sock2 < 0) {
 
-        clnt_addr_size = sizeof(clnt_addr2);
+      //  clnt_addr_size = sizeof(clnt_addr2);
 
-        clnt_sock2 = accept(serv_sock, (struct sockaddr*)&clnt_addr2, &clnt_addr_size);
+        //clnt_sock2 = accept(serv_sock, (struct sockaddr*)&clnt_addr2, &clnt_addr_size);
 
-        if (clnt_sock2 == -1)
-            error_handling("accept() error");
-    }*/
+      //  if (clnt_sock2 == -1)
+    //        error_handling("accept() error");
+   // }
 
+    thr_id = pthread_create(&p_thread, NULL, timer, (void*)&clnt_sock1);
+    if (thr_id < 0) {
+        perror("thread create error : ");
+        exit(0);
+    }
     //main logic
     while (1)
     {
@@ -92,18 +138,22 @@ int main(int argc, char* argv[]) {
         if (msg[0] == 't') {
             temprec = strtok(NULL, "=");
             temp = atoi(temprec);
+            printf("temp= %d\n", temp);
             // led panel show
             // if temp > 5c give signal to actuator pi
         }
         else if (msg[0] == 'p') {
             temprec = strtok(NULL, "=");
+
             pres = atoi(temprec);
+            printf("pres= %d\n", pres);
+            if (pres > 600) {
+                t = 0;
+            }
             // timer reset
         }
-        printf("%s\n", temprec);
         //write(clnt_sock2,msg,sizeof(msg));
-        usleep(1000000);
-
     }
+    pthread_join(p_thread, (void**)&status);
 }
 
