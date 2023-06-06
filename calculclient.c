@@ -50,7 +50,6 @@ void main(int argc, char *argv[]){
     FILE *file_pointer;
     file_pointer = fopen("/home/pi/date.txt","r");
     char buffer[32];
-    char response[3];
     
     while(1){
         char *buff = fgets(buffer,32,file_pointer);
