@@ -10,7 +10,7 @@ int main(void)
     pinMode(buzzer_pin, PWM_OUTPUT);
 
     pwmSetClock(19);
-    pwmSetMode(PWM_MODE_MS);F
+    pwmSetMode(PWM_MODE_MS);
 
     pwmSetRange(1000000/262);
     pwmWrite(buzzer_pin, 1000000/262/2);
