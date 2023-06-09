@@ -10,7 +10,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include "pressure.h"
+#include "preSensor.h"
 
 #define IN 1
 #define OUT 0
@@ -79,22 +79,13 @@ int readadc(int fd, uint8_t channel){
     return((rx[1] << 8) & 0x300) | (rx[2] & 0xFF);
 }
 
-int pressure_sensor( ){
-    int result = 0;
-    int fd = open(DEVICE, O_RDWR);
-    if(fd <= 0){
-        perror("Device open error");
-        return -1;
-    }
-
-    if(perpare(fd) == -1){
-        perror("Device prepare error");
-        return -1;
-    }
-
-        result = readadc(fd,0);
-        return result;
+int pressure_sensor(int fd){
+    int result = 1;       
+    result=readadc(fd,1);
+    return result;
+          
     
 }
     
+
 
