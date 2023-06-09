@@ -33,16 +33,16 @@ void* pressure_worker(void* sock){
     int p_value;
     int d_fd = open(DEVICE, O_RDWR);
     while(1){
-    char buf[20];
+    char buf[5];
     p_value=pressure_sensor(d_fd);
-    if(p_value>400){
+    if(p_value>600){
     printf("%d\n",p_value);
     sprintf(buf,"p=%d",p_value);
     write(socket_fd, &buf, sizeof(strlen(buf)));
-    usleep(100*1000);
+    usleep(1000*1000);
+    }
     }
     close(d_fd);
-    }
     // while(1){
     //   int p_value;
     //   char buf[20];
@@ -60,13 +60,13 @@ void *tem_worker(void *sock){
      int socket_fd=(int)sock;
     while(1){
     int t_value;
-    char buf[20];
+    char buf[5];
     t_value=tempStart(PIN1);
     sprintf(buf,"t=%d",t_value);
-    printf("%d\n",t_value);
+    printf("%d \n",t_value);
     write(socket_fd, buf, strlen(buf));
 
-    usleep(100*1000);
+    usleep(5000*1000);
     }
 
 
