@@ -18,17 +18,20 @@ void error_handling(char* message) {
 }
 void sendsignal_opendoor(int sock) {  //문이 열린경우 액츄에이터에 보냄 중간 경고음과 led등 
     char buf[1] = "1";//opendoor api
-    write(sock, buf, sizeof(buf));
+    //write(sock, buf, sizeof(buf));
+    printf("door is opened too long time\n");
     return;
 }
 void sendsignal_uptemp_warn(int sock) { //온도가 5~8도 사이로 올라간경우 등색 led
     char buf[1] = "2";//warn api
-    write(sock, buf, sizeof(buf));
+    //write(sock, buf, sizeof(buf));
+    printf("temperature warning\n");
     return;
 }
 void sendsignal_uptemp_critical(int sock) {  //온도가 8도이상 올라간 경우 적색 led+ 높은 경고음
     char buf[1] = "3";//critical api
-    write(sock, buf, sizeof(buf));
+    //write(sock, buf, sizeof(buf));
+    printf("critical temperature\n");
     return;
 }
 void sendsignal_timeout(int sock) {  //유효기간 ??
@@ -105,7 +108,7 @@ int main(int argc, char* argv[]) {
             error_handling("accept() error");
     }
     //client conection (actuator)
-    if (clnt_sock2 < 0) {
+    /*if (clnt_sock2 < 0) {
 
        clnt_addr_size = sizeof(clnt_addr2);
 
@@ -113,7 +116,7 @@ int main(int argc, char* argv[]) {
 
        if (clnt_sock2 == -1)
            error_handling("accept() error");
-   }
+   }*/
 
     thr_id = pthread_create(&p_thread, NULL, timer, (void*)&clnt_sock2);
     if (thr_id < 0) {
@@ -139,9 +142,9 @@ int main(int argc, char* argv[]) {
             //lcd패널에 온도실시간  보내기 구현 해야함 
             temp = atoi(temprec);
             printf("temp= %d\n", temp);
-            if(temp>=50&&time<80)
+            if(temp>=50&&temp<230)
                 sendsignal_uptemp_warn(clnt_sock2);
-            if(temp>80)
+            if(temp>250)
                 sendsignal_uptemp_critical(clnt_sock2);
             // led panel show
             // if temp > 5c give signal to actuator pi
