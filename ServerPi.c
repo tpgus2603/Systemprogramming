@@ -17,31 +17,25 @@ void error_handling(char* message) {
     exit(1);
 }
 void sendsignal_opendoor(int sock) {  //문이 열린경우 액츄에이터에 보냄 중간 경고음과 led등 
-    char buf[1] = "1";//opendoor api
-    //write(sock, buf, sizeof(buf));
+    char buf[1] = "01";//opendoor api
+    write(sock, buf, sizeof(buf));
     printf("door is opened too long time\n");
     return;
 }
 void sendsignal_uptemp_warn(int sock) { //온도가 5~8도 사이로 올라간경우 등색 led
-    char buf[1] = "2";//warn api
-    //write(sock, buf, sizeof(buf));
+    char buf[1] = "02";//warn api
+    write(sock, buf, sizeof(buf));
     printf("temperature warning\n");
     return;
 }
 void sendsignal_uptemp_critical(int sock) {  //온도가 8도이상 올라간 경우 적색 led+ 높은 경고음
-    char buf[1] = "3";//critical api
-    //write(sock, buf, sizeof(buf));
+    char buf[1] = "03";//critical api
+    write(sock, buf, sizeof(buf));
     printf("critical temperature\n");
     return;
 }
-void sendsignal_timeout(int sock) {  //유효기간 ??
-    char buf[1] = "4";//opendoor api
-    write(sock, buf, sizeof(buf));
-    return;
-}
-
-void sendsignal_timewarn(int sock) { //
-    char buf[1] = "5";//opendoor api
+void sendsignal_timewarn(int sock) {  //유효기간 ??
+    char buf[1] = "04";//date near sign
     write(sock, buf, sizeof(buf));
     return;
 }
@@ -59,9 +53,58 @@ void* timer(void* data) {
         usleep(1000*1000);
     }
 }
-int main(int argc, char* argv[]) {
 
-    pthread_t p_thread;
+void* notenoughDate(void* data) {
+    int* sock = (int*)data;
+    FILE* file_pointer;
+    file_pointer = fopen("/home/pi/date.txt", "r");
+    char buffer[32];
+    char* ptr1, * ptr2;
+
+    int year, month, day;
+    char* cyear, * cmonth, * cday;
+    time_t t;
+    struct tm* tm;
+    char comparedate[10] = {0,};
+    char* doubledot = ":";
+
+    while (1) {
+        t = time(NULL);
+        tm = localtime(&t);
+        year = tm.tm_year + 1900;
+        month = tm.tm_mon + 1;
+        day = tm.tm_mday;
+        itoa(year, cyear, 10);
+        itoa(month, cmonth, 10);
+        itoa(day, cday, 10);
+
+        strcat(comparedate, cyear);
+        strcat(comparedate, doubledot);
+        strcat(comparedate, cmonth);
+        strcat(comparedate, doubledot);
+        strcat(comparedate, cday);
+
+        char* buff = fgets(buffer, 32, file_pointer);
+        if (feof(file_pointer) != 0) {
+            fclose(file_pointer);
+            sleep(60 * 60 * 24);
+            file_pointer = fopen("/home/pi/date.txt", "r");
+            continue;
+        }
+        ptr1 = strtok(msg, ",");
+        ptr2 = strtok(NULL, ",");
+        if (strcmp(comparedate,ptr2)==0) {//유통기한 얼마 안남았으면, ==> 오늘 날짜 == ptr2
+            sendsignal_timewarn(*sock);
+            write(sock, ptr1, sizeof(ptr1));
+            sleep(5);
+            comparedate = { 0, };
+            ptr1 = { 0, };
+            ptr2 = { 0, };
+        }
+    }
+}
+int main(int argc, char* argv[]) {
+    pthread_t p_thread, threadfordate;
     int thr_id;
     int status;
 
@@ -95,7 +138,7 @@ int main(int argc, char* argv[]) {
     //server socket binding
     if (bind(serv_sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) == -1)
         error_handling("bind() error");
-    if (listen(serv_sock, 5) == -1)
+    if (listen(serv_sock, 2) == -1)
         error_handling("listen() error");
     //client connecting (sensor)
     if (clnt_sock1 < 0) {
@@ -108,7 +151,7 @@ int main(int argc, char* argv[]) {
             error_handling("accept() error");
     }
     //client conection (actuator)
-    /*if (clnt_sock2 < 0) {
+    if (clnt_sock2 < 0) {
 
        clnt_addr_size = sizeof(clnt_addr2);
 
@@ -116,9 +159,14 @@ int main(int argc, char* argv[]) {
 
        if (clnt_sock2 == -1)
            error_handling("accept() error");
-   }*/
+   }
 
     thr_id = pthread_create(&p_thread, NULL, timer, (void*)&clnt_sock2);
+    if (thr_id < 0) {
+        perror("thread create error : ");
+        exit(0);
+    }
+    thr_id = pthread_create(&threadfordate, NULL, , (void*)&clnt_sock2);
     if (thr_id < 0) {
         perror("thread create error : ");
         exit(0);
@@ -126,6 +174,7 @@ int main(int argc, char* argv[]) {
     //main logic
     while (1)
     {
+
         //get info from client(sensor)
         str_len = read(clnt_sock1, msg, sizeof(msg));
         printf("%s\n", msg);
@@ -162,5 +211,6 @@ int main(int argc, char* argv[]) {
         //write(clnt_sock2,msg,sizeof(msg));
     }
     pthread_join(p_thread, (void**)&status);
+    pthread_join(threadfordate, (void**)&status);
 }
 
