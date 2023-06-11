@@ -5,8 +5,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
-
-#include <unistd.h>
 #include <string.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -16,6 +14,24 @@
 #include <wiringPiI2C.h>
 #include <wiringPi.h>
 
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#include <unistd.h>
+#include <string.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+
+#include <pthread.h>
+#include <time.h>
+
+#include <sys/ioctl.h>
+#include <stdint.h>
+
 #include "gpio.h"
 
 #define IN 0
@@ -23,8 +39,6 @@
 #define LOW 0
 #define HIGH 1
 
-#define VALUE_MAX 45
-#define DIRECTION_MAX 45
 
 // GPIO
 #define BUZ 0
@@ -168,11 +182,80 @@ static int PWMWriteDutyCycle(int pwmnum, int value) {
     return(0);
 }
 
+//냉장고 문열림이랑 온도비정상이랑 스피커 출력을 같게 하면 됨.
+void buzzerOn(){
+    PWMWriteDutyCycle(BUZ,100000);
+}
+void buzzerOff(){
+    PWMWriteDutyCycle(BUZ,0);
+}
+void buzzerPattern(int i){
+    printf("buzpattern\n");
+    while(i--){
+        buzzerOn();
+        usleep(500000);
+        buzzerOff();
+        usleep(500000);
+    }   
+}
+
+void ledOn(int led){
+    if (-1 == GPIOWrite(led, 1)){
+        printf("error on ledon!");
+        exit(0);
+    }
+        
+}
+void ledOff(int led){
+    if (-1 == GPIOWrite(led, 0)){
+        printf("error on ledon!");
+        exit(0);
+    }
+}
+
+void *buzthread(){
+    printf("buzthread\n");
+    buzzerPattern(3);    
+}
+
+void *ledthread(void* data){
+    printf("ledthread\n");
+    int *led =(int*)data;
+
+    ledOn(*led);
+    sleep(5);
+    ledOff(*led);
+}
+
+
 int main(int argc, char* argv[]) {
-    /*int sock;
+    int sock;
     struct sockaddr_in serv_addr;
     int str_len;
-    char msg[100];*/
+    char msg[100];
+
+    if(argc!=3){
+        printf("Usage : %s <IP> <port>\n",argv[0]);
+        exit(1);
+    }
+
+    sock = socket(PF_INET, SOCK_STREAM, 0);
+
+    if(sock == -1)
+        error_handling("socket() error");
+
+    memset(&serv_addr, 0, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_addr.s_addr = inet_addr(argv[1]);
+    serv_addr.sin_port = htons(atoi(argv[2]));  
+        
+    if(connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr))==-1)
+        error_handling("connect() error");
+    
+    PWMExport(BUZ);
+    PWMWritePeriod(BUZ, 200000); // lower number, higher sound!!
+    PWMWriteDutyCycle(BUZ, 0);
+    PWMEnable(0);
 
     if (-1 == GPIOExport(LED1) || -1 == GPIOExport(LED2) || -1 == GPIOExport(LED3) || -1 == GPIOExport(LED4))
         return(1);
@@ -183,39 +266,102 @@ int main(int argc, char* argv[]) {
 
     fd = wiringPiI2CSetup(I2C_ADDR);
 
-    printf("fd = %d \n", fd);
-
     lcd_init(); // setup LCD
 
-    PWMExport(BUZ);
-    PWMWritePeriod(BUZ, 2000000); // lower number, higher sound!!
-    PWMWriteDutyCycle(BUZ, 0);
-    PWMEnable(0);
-
-    /*wiringPiSetupGpio();
-    pinMode(BUZ, PWM_OUTPUT);
-
-    pwmSetClock(19);
-    pwmSetMode(PWM_MODE_MS);
-
-    pwmSetRange(1000000 / 262);*/
-
-    if (-1 == GPIOWrite(LED1, 1) || -1 == GPIOWrite(LED2, 1) || -1 == GPIOWrite(LED3, 1) || -1 == GPIOWrite(LED4, 1))
+    if (-1 == GPIOWrite(LED1, 0) || -1 == GPIOWrite(LED2, 0) || -1 == GPIOWrite(LED3, 0) || -1 == GPIOWrite(LED4, 0))
         return(3);
-    char array1[] = "Hello world!";
-    char array2[] = "Smart Class!";
 
+    pthread_t pthread[7];
+    int thr_id;
+    int status;
 
     while (1) {
-        printf("hihi\n", fd);
-        lcdLoc(LINE1);
-        typeln("Using wiringPi");
-        lcdLoc(LINE2);
-        typeln("kjpark editor.");
-        PWMWriteDutyCycle(BUZ, 10000);
 
+        printf("Waiting....\n");
+        str_len = read(sock, msg, sizeof(msg));
+        printf("%s\n", msg);
+        usleep(100000);
+
+
+        if(msg[0]=='0'){
+            if(msg[1]=='1'){//Door is open
+                int led = LED1;
+
+                thr_id = pthread_create(&pthread[0], NULL, buzthread, NULL);
+                printf("Door is open\n");
+                if (thr_id < 0) {
+                    perror("thread create error : ");
+                    exit(0);
+                }
+                thr_id = pthread_create(&pthread[1], NULL, ledthread, (void*)&led);
+                printf("thr_id:%d\n",thr_id);
+                if (thr_id < 0) {
+                    perror("thread create error : ");
+                    exit(0);
+                }
+
+            }
+
+            else if(msg[1]=='2'){//Temparature is warn
+                int led = LED2;
+                printf("Temp is warning\n");
+                thr_id = pthread_create(&pthread[2], NULL, buzthread, NULL);
+
+                if (thr_id < 0) {
+                    perror("thread create error : ");
+                    exit(0);
+                }
+                thr_id = pthread_create(&pthread[3], NULL, ledthread, (void*)&led);
+
+                if (thr_id < 0) {
+                    perror("thread create error : ");
+                    exit(0);
+                }
+
+            }else if(msg[1]=='3'){//
+                int led = LED3;
+                printf("Temp is critical\n");
+                thr_id = pthread_create(&pthread[4], NULL, buzthread, NULL);
+
+                if (thr_id < 0) {
+                    perror("thread create error : ");
+                    exit(0);
+                }
+                thr_id = pthread_create(&pthread[5], NULL, ledthread, (void*)&led);
+
+                if (thr_id < 0) {
+                    perror("thread create error : ");
+                    exit(0);
+                }
+
+
+                
+            }else if(msg[1]=='4'){
+                int led = LED4;
+                printf("Date is near\n");
+                thr_id = pthread_create(&pthread[6], NULL, ledthread, (void*)&led);
+
+                if (thr_id < 0) {
+                    perror("thread create error : ");
+                    exit(0);
+                }
+
+                char name[16];
+                str_len = read(sock, name, sizeof(name));
+
+                lcdLoc(LINE1);
+                typeln("Date is near...");
+                lcdLoc(LINE2);
+                typeln(name);
+                delay(5000);
+                ClrLcd();
+                name[0]='\0';
+            }
+        }else{//유통기한 출력 부분
+            
         /*pwmWrite(BUZ, 1000000 / 262 / 2);
         delay(3000);*/
+        }
     }
 
 
