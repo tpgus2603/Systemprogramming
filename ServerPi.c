@@ -17,25 +17,25 @@ void error_handling(char* message) {
     exit(1);
 }
 void sendsignal_opendoor(int sock) {  //문이 열린경우 액츄에이터에 보냄 중간 경고음과 led등 
-    char buf[1] = "01";//opendoor api
+    char buf[100] = "01";//opendoor api
     write(sock, buf, sizeof(buf));
     printf("door is opened too long time\n");
     return;
 }
 void sendsignal_uptemp_warn(int sock) { //온도가 5~8도 사이로 올라간경우 등색 led
-    char buf[1] = "02";//warn api
+    char buf[100] = "02";//warn api
     write(sock, buf, sizeof(buf));
     printf("temperature warning\n");
     return;
 }
 void sendsignal_uptemp_critical(int sock) {  //온도가 8도이상 올라간 경우 적색 led+ 높은 경고음
-    char buf[1] = "03";//critical api
+    char buf[100] = "03";//critical api
     write(sock, buf, sizeof(buf));
     printf("critical temperature\n");
     return;
 }
 void sendsignal_timewarn(int sock) {  //유효기간 ??
-    char buf[1] = "04";//date near sign
+    char buf[100] = "04";//date near sign
     write(sock, buf, sizeof(buf));
     return;
 }
@@ -57,49 +57,54 @@ void* timer(void* data) {
 void* notenoughDate(void* data) {
     int* sock = (int*)data;
     FILE* file_pointer;
-    file_pointer = fopen("/home/pi/date.txt", "r");
+    file_pointer = fopen("/home/user/date.txt", "r");
     char buffer[32];
-    char* ptr1, * ptr2;
+
+    char* ptr1, *ptr2;
 
     int year, month, day;
-    char* cyear, * cmonth, * cday;
+    char cyear[10], cmonth[10], cday[10];
     time_t t;
     struct tm* tm;
     char comparedate[10] = {0,};
-    char* doubledot = ":";
+    char* doubledot = ".";
 
     while (1) {
-        t = time(NULL);
-        tm = localtime(&t);
-        year = tm.tm_year + 1900;
-        month = tm.tm_mon + 1;
-        day = tm.tm_mday;
-        itoa(year, cyear, 10);
-        itoa(month, cmonth, 10);
-        itoa(day, cday, 10);
-
-        strcat(comparedate, cyear);
-        strcat(comparedate, doubledot);
-        strcat(comparedate, cmonth);
-        strcat(comparedate, doubledot);
-        strcat(comparedate, cday);
-
-        char* buff = fgets(buffer, 32, file_pointer);
+        printf("Server Hi\n");
+        fgets(buffer, 32, file_pointer);
         if (feof(file_pointer) != 0) {
             fclose(file_pointer);
             sleep(60 * 60 * 24);
             file_pointer = fopen("/home/pi/date.txt", "r");
             continue;
         }
-        ptr1 = strtok(msg, ",");
-        ptr2 = strtok(NULL, ",");
-        if (strcmp(comparedate,ptr2)==0) {//유통기한 얼마 안남았으면, ==> 오늘 날짜 == ptr2
+        printf("Server Hi2\n");
+        t = time(NULL);
+        tm = localtime(&t);
+        year = tm->tm_year + 1900;
+        month = tm->tm_mon + 1;
+        day = tm->tm_mday;
+        char datebuffer[10];
+
+        snprintf(datebuffer,sizeof(datebuffer),"%d.%d.%d",year,month,day);
+
+        printf("현재시각 : %s\n",datebuffer);
+        
+        ptr1 = strtok(buffer, ",");
+        ptr2 = strtok(NULL, "\n");
+
+        printf("상품명 :%s, 유통기한 :%s\n",ptr1,ptr2);
+        printf("%s, %s\n",datebuffer,ptr2);
+        printf("%d, %d\n",sizeof(datebuffer),sizeof(ptr2));
+        if (strcmp(datebuffer,ptr2)==0) {//유통기한 얼마 안남았으면, ==> 오늘 날짜 == ptr2
+            printf("%s는 유통기한이 오늘까지입니다.\n",ptr1);
             sendsignal_timewarn(*sock);
-            write(sock, ptr1, sizeof(ptr1));
+            usleep(500000);
+            write(*sock, ptr1, 16);
             sleep(5);
-            comparedate = { 0, };
-            ptr1 = { 0, };
-            ptr2 = { 0, };
+            datebuffer[0] = '\0';
+            ptr1[0] = '\0';
+            ptr2[0] = '\0';
         }
     }
 }
@@ -166,7 +171,7 @@ int main(int argc, char* argv[]) {
         perror("thread create error : ");
         exit(0);
     }
-    thr_id = pthread_create(&threadfordate, NULL, , (void*)&clnt_sock2);
+    thr_id = pthread_create(&threadfordate, NULL, notenoughDate, (void*)&clnt_sock2);
     if (thr_id < 0) {
         perror("thread create error : ");
         exit(0);
@@ -174,7 +179,6 @@ int main(int argc, char* argv[]) {
     //main logic
     while (1)
     {
-
         //get info from client(sensor)
         str_len = read(clnt_sock1, msg, sizeof(msg));
         printf("%s\n", msg);
@@ -191,9 +195,9 @@ int main(int argc, char* argv[]) {
             //lcd패널에 온도실시간  보내기 구현 해야함 
             temp = atoi(temprec);
             printf("temp= %d\n", temp);
-            if(temp>=50&&temp<230)
+            if(temp>=300&&temp<320)
                 sendsignal_uptemp_warn(clnt_sock2);
-            if(temp>250)
+            if(temp>320)
                 sendsignal_uptemp_critical(clnt_sock2);
             // led panel show
             // if temp > 5c give signal to actuator pi
