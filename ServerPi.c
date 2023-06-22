@@ -10,6 +10,9 @@
 #include <signal.h>
 #include <time.h>
 #include <pthread.h>
+#include "lcd.h"
+#include <wiringPiI2C.h>
+#include <wiringPi.h>
 
 //Error handling
 void error_handling(char* message) {
@@ -64,7 +67,7 @@ void* timer(void* data) {
     }
 }
 
-void dateprint(int sock){
+void dateprint(int *sock){
     FILE* file_pointer;
     file_pointer = fopen("/home/user/date.txt", "r");
     char buffer[32];
@@ -106,9 +109,9 @@ void dateprint(int sock){
 
         if (strcmp(datebuffer,ptr2)==0) {//If Date==Today, send signal
             //printf("%s's Date is near.\n",ptr1);
-            sendsignal_timewarn(sock);
+            sendsignal_timewarn(*sock);
             usleep(500000);
-            write(sock, ptr1, 16);
+            write(*sock, ptr1, 16);
             sleep(5);
             datebuffer[0] = '\0';
             ptr1[0] = '\0';
@@ -129,7 +132,7 @@ void* notenoughDate(void* data) {
         timeinfo = localtime(&currentTime);
 
         if (currentTime != previousTime) {
-            dateprint(*sock);
+            dateprint(sock);
         }
 
         previousTime = currentTime;
@@ -142,12 +145,16 @@ void* notenoughDate(void* data) {
 void* listenActivateButton(void* data){
     int *sock = (int*)data;
     int str_len;
-    char msg[6];
+    char msg[100];
+    printf("listen Activae!\n");
     while(1){
-        str_len = read(*clnt_sock2, msg, sizeof(msg));
-        if(msg[0]=="1"){
-            dateprint(*sock);
+        str_len = read(*sock, msg, sizeof(msg));
+        printf("listen msg = %s\n",msg);
+        if(msg[0]=='!'){
+            printf("button is read\n");
+            dateprint(sock);
         }
+        usleep(1000000);
     }
 }
 

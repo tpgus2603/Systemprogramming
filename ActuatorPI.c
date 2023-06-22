@@ -8,7 +8,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-
+#include <signal.h>
 #include <pthread.h>
 
 #include <wiringPiI2C.h>
@@ -62,7 +62,15 @@ void typeln(const char* s);
 void typeChar(char val);
 int fd;  // seen by all subroutines
 
-
+void signalHandler(){
+    GPIOUnexport(LED1);
+    GPIOUnexport(LED2);
+    GPIOUnexport(LED3);
+    GPIOUnexport(LED4);
+    GPIOUnexport(BIN);
+    GPIOUnexport(BOUT);
+    exit(1);
+}
 void error_handling(char* message) {
     fputs(message, stderr);
     fputc('\n', stderr);
@@ -214,8 +222,34 @@ void *ledthread(void* data){
     ledOff(*led);
 }
 
+void sendsignal(int *sock){
+    char sig[100] = "!";
+    write(*sock, sig, sizeof(sig));
+}
+
+void *btnthread(void* data){
+    int *sock=(int*)data;
+    do{
+        if(-1==GPIOWrite(BOUT,1))
+            exit(1);
+        if(GPIORead(BIN)==0){
+            printf("button clicked\n");
+            sendsignal(sock);
+            usleep(1000000);
+        }
+    }while(1);
+}
+
+void (*breakCapture)(int);
+
 
 int main(int argc, char* argv[]) {
+
+    setsid();
+    umask(0);
+
+    breakCapture = signal(SIGINT, signalHandler);
+
     int sock;
     struct sockaddr_in serv_addr;
     int str_len;
@@ -251,6 +285,8 @@ int main(int argc, char* argv[]) {
     usleep(500000);
     if (-1 == GPIODirection(LED1, OUT) || -1 == GPIODirection(LED2, OUT) || -1 == GPIODirection(LED3, OUT) || -1 == GPIODirection(LED4, OUT))
         return(2);
+    if (-1 == GPIODirection(BIN, IN) || -1 == GPIODirection(BOUT, OUT))
+        return(2);
 
     if (wiringPiSetup() == -1) exit(1);
     fd = wiringPiI2CSetup(I2C_ADDR);
@@ -259,9 +295,17 @@ int main(int argc, char* argv[]) {
     if (-1 == GPIOWrite(LED1, 0) || -1 == GPIOWrite(LED2, 0) || -1 == GPIOWrite(LED3, 0) || -1 == GPIOWrite(LED4, 0))
         return(3);
 
+    
     pthread_t pthread[7];
+    pthread_t btn;
     int thr_id;
     int status;
+
+    thr_id = pthread_create(&btn, NULL, btnthread,(void*)&sock);
+    if (thr_id < 0) {
+        perror("thread create error : ");
+        exit(0);
+    }
 
     while (1) {
 
