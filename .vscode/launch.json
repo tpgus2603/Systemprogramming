@@ -8,8 +8,8 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": true,
-      "cwd": "c:/Users/user/SS",
-      "program": "c:/Users/user/SS/build/Debug/outDebug",
+      "cwd": "c:/Users/user/OneDrive/바탕 화면/LasberryPI/systemsoftware_12",
+      "program": "c:/Users/user/OneDrive/바탕 화면/LasberryPI/systemsoftware_12/build/Debug/outDebug",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [
