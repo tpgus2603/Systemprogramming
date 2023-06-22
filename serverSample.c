@@ -93,7 +93,7 @@ void* timer(void* data) {
     }
 }
 
-void dateprint(int sock) {
+void dateprint(int *sock) {
     FILE* file_pointer;
     file_pointer = fopen("/home/user/date.txt", "r");
     char buffer[32];
@@ -135,9 +135,9 @@ void dateprint(int sock) {
 
         if (strcmp(datebuffer, ptr2) == 0) {//If Date==Today, send signal
             //printf("%s's Date is near.\n",ptr1);
-            sendsignal_timewarn(sock);
+            sendsignal_timewarn(*sock);
             usleep(500000);
-            write(sock, ptr1, 16);
+            write(*sock, ptr1, 16);
             sleep(5);
             datebuffer[0] = '\0';
             ptr1[0] = '\0';
@@ -158,7 +158,7 @@ void* notenoughDate(void* data) {
         timeinfo = localtime(&currentTime);
 
         if (currentTime != previousTime) {
-            dateprint(*sock);
+            dateprint(sock);
         }
 
         previousTime = currentTime;
@@ -173,9 +173,9 @@ void* listenActivateButton(void* data) {
     int str_len;
     char msg[6];
     while (1) {
-        str_len = read(*clnt_sock2, msg, sizeof(msg));
-        if (msg[0] == "1") {
-            dateprint(*sock);
+        str_len = read(*sock, msg, sizeof(msg));
+        if (msg[0] == '1') {
+            dateprint(sock);
         }
     }
 }
@@ -265,8 +265,8 @@ int main(int argc, char* argv[]) {
         strtok(msg, "=");
         char* temprec;
         if (msg[0] == 't') {
-            char* tempc = divideByTen(temprec);
             temprec = strtok(NULL, "=");
+            char* tempc = divideByTen(temprec);
             lcdStart(LINE1, "Temperature");
             lcdStart(LINE2, tempc);
             temp = atoi(temprec);
