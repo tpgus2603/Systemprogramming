@@ -16,36 +16,45 @@ void error_handling(char* message) {
     fputc('\n', stderr);
     exit(1);
 }
-void sendsignal_opendoor(int sock) {  //문이 열린경우 액츄에이터에 보냄 중간 경고음과 led등 
-    char buf[100] = "01";//opendoor api
+//Open Door Api
+//Middle Buzzer Sound + ??? LED
+void sendsignal_opendoor(int sock) {  
+    char buf[100] = "01";
     write(sock, buf, sizeof(buf));
     printf("door is opened too long time\n");
     return;
 }
+//Warn Temperature Api
+//Yellow LED
 void sendsignal_uptemp_warn(int sock) { //온도가 5~8도 사이로 올라간경우 등색 led
     char buf[100] = "02";//warn api
     write(sock, buf, sizeof(buf));
     printf("temperature warning\n");
     return;
 }
+//Critical Temperature Api
+//High Buzzer Sound + Red LED
 void sendsignal_uptemp_critical(int sock) {  //온도가 8도이상 올라간 경우 적색 led+ 높은 경고음
     char buf[100] = "03";//critical api
     write(sock, buf, sizeof(buf));
     printf("critical temperature\n");
     return;
 }
-void sendsignal_timewarn(int sock) {  //유효기간 ??
-    char buf[100] = "04";//date near sign
+//Date is near Api
+//Green LED
+void sendsignal_timewarn(int sock) { 
+    char buf[100] = "04";
     write(sock, buf, sizeof(buf));
     return;
 }
 
+//Timer Thread for Open Door Api
 int t = 0;
 void* timer(void* data) {
     int* sock = (int*)data;
     while (1) {
         t++;
-        if (t == 30) {
+        if (t == 30) { //If Door is open during 30 sec, send signal
             t = 0;
             sendsignal_opendoor(*sock);
         }
@@ -54,6 +63,7 @@ void* timer(void* data) {
     }
 }
 
+//Date is near Thread
 void* notenoughDate(void* data) {
     int* sock = (int*)data;
     FILE* file_pointer;
@@ -70,7 +80,7 @@ void* notenoughDate(void* data) {
     char* doubledot = ".";
 
     while (1) {
-        printf("Server Hi\n");
+
         fgets(buffer, 32, file_pointer);
         if (feof(file_pointer) != 0) {
             fclose(file_pointer);
@@ -78,7 +88,7 @@ void* notenoughDate(void* data) {
             file_pointer = fopen("/home/pi/date.txt", "r");
             continue;
         }
-        printf("Server Hi2\n");
+
         t = time(NULL);
         tm = localtime(&t);
         year = tm->tm_year + 1900;
@@ -88,16 +98,17 @@ void* notenoughDate(void* data) {
 
         snprintf(datebuffer,sizeof(datebuffer),"%d.%d.%d",year,month,day);
 
-        printf("현재시각 : %s\n",datebuffer);
+        //printf("Time : %s\n",datebuffer);
         
         ptr1 = strtok(buffer, ",");
         ptr2 = strtok(NULL, "\n");
 
-        printf("상품명 :%s, 유통기한 :%s\n",ptr1,ptr2);
-        printf("%s, %s\n",datebuffer,ptr2);
-        printf("%d, %d\n",sizeof(datebuffer),sizeof(ptr2));
-        if (strcmp(datebuffer,ptr2)==0) {//유통기한 얼마 안남았으면, ==> 오늘 날짜 == ptr2
-            printf("%s는 유통기한이 오늘까지입니다.\n",ptr1);
+        //printf("Name :%s, Date :%s\n",ptr1,ptr2);
+        //printf("%s, %s\n",datebuffer,ptr2);
+        //printf("%d, %d\n",sizeof(datebuffer),sizeof(ptr2));
+
+        if (strcmp(datebuffer,ptr2)==0) {//If Date==Today, send signal
+            //printf("%s's Date is near.\n",ptr1);
             sendsignal_timewarn(*sock);
             usleep(500000);
             write(*sock, ptr1, 16);
@@ -108,11 +119,11 @@ void* notenoughDate(void* data) {
         }
     }
 }
+
 int main(int argc, char* argv[]) {
     pthread_t p_thread, threadfordate;
     int thr_id;
     int status;
-
 
     int str_len; //read_len
     //socket 1
@@ -164,7 +175,7 @@ int main(int argc, char* argv[]) {
 
        if (clnt_sock2 == -1)
            error_handling("accept() error");
-   }
+    }
 
     thr_id = pthread_create(&p_thread, NULL, timer, (void*)&clnt_sock2);
     if (thr_id < 0) {
@@ -176,23 +187,23 @@ int main(int argc, char* argv[]) {
         perror("thread create error : ");
         exit(0);
     }
-    //main logic
+    
+    //main logic - Reading Temperature, Pressure from Sensor
     while (1)
     {
-        //get info from client(sensor)
+
         str_len = read(clnt_sock1, msg, sizeof(msg));
         printf("%s\n", msg);
-        //inaccurate info
+
         if (str_len == -1)
             error_handling("read() error");
-        // temp t=12
-        // pressure p=500
-        char* temprec;//parsing 
-        int temp, pres;//parsing - integer
+
+        char* temprec;
+        int temp, pres;
         strtok(msg, "=");
         if (msg[0] == 't') {
             temprec = strtok(NULL, "=");
-            //lcd패널에 온도실시간  보내기 구현 해야함 
+
             temp = atoi(temprec);
             printf("temp= %d\n", temp);
             if(temp>=300&&temp<320)
@@ -214,7 +225,7 @@ int main(int argc, char* argv[]) {
         }
         //write(clnt_sock2,msg,sizeof(msg));
     }
-    pthread_join(p_thread, (void**)&status);
-    pthread_join(threadfordate, (void**)&status);
+    //pthread_join(p_thread, (void**)&status);
+    //pthread_join(threadfordate, (void**)&status);
 }
 
