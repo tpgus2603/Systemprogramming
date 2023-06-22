@@ -13,22 +13,7 @@
 
 #include <wiringPiI2C.h>
 #include <wiringPi.h>
-
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-
-#include <unistd.h>
-#include <string.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-
-#include <pthread.h>
 #include <time.h>
-
 #include <sys/ioctl.h>
 #include <stdint.h>
 
@@ -46,6 +31,8 @@
 #define LED2 27
 #define LED3 22
 #define LED4 23
+#define BIN 20
+#define BOUT 21
 
 // Define some device parameters
 #define I2C_ADDR   0x27 // I2C device address
@@ -259,13 +246,14 @@ int main(int argc, char* argv[]) {
 
     if (-1 == GPIOExport(LED1) || -1 == GPIOExport(LED2) || -1 == GPIOExport(LED3) || -1 == GPIOExport(LED4))
         return(1);
+    if (-1 == GPIOExport(BIN) || -1 == GPIOExport(BOUT))
+        return(1);
+    usleep(500000);
     if (-1 == GPIODirection(LED1, OUT) || -1 == GPIODirection(LED2, OUT) || -1 == GPIODirection(LED3, OUT) || -1 == GPIODirection(LED4, OUT))
         return(2);
 
     if (wiringPiSetup() == -1) exit(1);
-
     fd = wiringPiI2CSetup(I2C_ADDR);
-
     lcd_init(); // setup LCD
 
     if (-1 == GPIOWrite(LED1, 0) || -1 == GPIOWrite(LED2, 0) || -1 == GPIOWrite(LED3, 0) || -1 == GPIOWrite(LED4, 0))
@@ -281,7 +269,6 @@ int main(int argc, char* argv[]) {
         str_len = read(sock, msg, sizeof(msg));
         printf("%s\n", msg);
         usleep(100000);
-
 
         if(msg[0]=='0'){
             if(msg[1]=='1'){//Door is open
