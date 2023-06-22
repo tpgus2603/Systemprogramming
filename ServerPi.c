@@ -25,17 +25,17 @@ void sendsignal_opendoor(int sock) {
     return;
 }
 //Warn Temperature Api
-//Yellow LED
-void sendsignal_uptemp_warn(int sock) { //온도가 5~8도 사이로 올라간경우 등색 led
-    char buf[100] = "02";//warn api
+//Yellow LED 5~7C
+void sendsignal_uptemp_warn(int sock) {
+    char buf[100] = "02";
     write(sock, buf, sizeof(buf));
     printf("temperature warning\n");
     return;
 }
 //Critical Temperature Api
-//High Buzzer Sound + Red LED
-void sendsignal_uptemp_critical(int sock) {  //온도가 8도이상 올라간 경우 적색 led+ 높은 경고음
-    char buf[100] = "03";//critical api
+//High Buzzer Sound + Red LED 8C
+void sendsignal_uptemp_critical(int sock) {
+    char buf[100] = "03";
     write(sock, buf, sizeof(buf));
     printf("critical temperature\n");
     return;
@@ -187,7 +187,6 @@ int main(int argc, char* argv[]) {
         perror("thread create error : ");
         exit(0);
     }
-    
     //main logic - Reading Temperature, Pressure from Sensor
     while (1)
     {
