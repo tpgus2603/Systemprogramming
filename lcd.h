@@ -14,5 +14,6 @@ void ClrLcd(void); // clr LCD return home
 void typeln(const char* s);
 void typeChar(char val);
 void lcdStart(int line,char *string);
+void lcdSetup();
 
 #endif

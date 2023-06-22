@@ -112,13 +112,15 @@ void lcd_init()   {
   delayMicroseconds(500);
 }
 
-void lcdStart(int line ,char *string){
-if (wiringPiSetup() == -1) exit(1);
+void lcdSetup(){
+    if (wiringPiSetup() == -1) exit(1);
     fd = wiringPiI2CSetup(I2C_ADDR);
-   lcd_init(); // setup LCD
+    lcd_init(); // setup LCD
+}
+void lcdStart(int line ,char *string){
    lcdLoc(line);
    typeln(string); 
-   }
+}
 
 
 
