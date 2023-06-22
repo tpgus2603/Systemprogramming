@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <signal.h>
+#include <time.h>
 #include <pthread.h>
 
 //Error handling
@@ -18,7 +19,7 @@ void error_handling(char* message) {
 }
 //Open Door Api
 //Middle Buzzer Sound + ??? LED
-void sendsignal_opendoor(int sock) {  
+void sendsignal_opendoor(int sock) {
     char buf[100] = "01";
     write(sock, buf, sizeof(buf));
     printf("door is opened too long time\n");
@@ -63,14 +64,10 @@ void* timer(void* data) {
     }
 }
 
-//Date is near Thread
-void* notenoughDate(void* data) {
-    int* sock = (int*)data;
+void dateprint(int sock){
     FILE* file_pointer;
     file_pointer = fopen("/home/user/date.txt", "r");
     char buffer[32];
-
-    char* ptr1, *ptr2;
 
     int year, month, day;
     char cyear[10], cmonth[10], cday[10];
@@ -79,14 +76,14 @@ void* notenoughDate(void* data) {
     char comparedate[10] = {0,};
     char* doubledot = ".";
 
+    char* ptr1, *ptr2;
+
     while (1) {
 
         fgets(buffer, 32, file_pointer);
         if (feof(file_pointer) != 0) {
             fclose(file_pointer);
-            sleep(60 * 60 * 24);
-            file_pointer = fopen("/home/pi/date.txt", "r");
-            continue;
+            return;
         }
 
         t = time(NULL);
@@ -109,9 +106,9 @@ void* notenoughDate(void* data) {
 
         if (strcmp(datebuffer,ptr2)==0) {//If Date==Today, send signal
             //printf("%s's Date is near.\n",ptr1);
-            sendsignal_timewarn(*sock);
+            sendsignal_timewarn(sock);
             usleep(500000);
-            write(*sock, ptr1, 16);
+            write(sock, ptr1, 16);
             sleep(5);
             datebuffer[0] = '\0';
             ptr1[0] = '\0';
@@ -119,9 +116,43 @@ void* notenoughDate(void* data) {
         }
     }
 }
+//Date is near Thread in 24hours
+void* notenoughDate(void* data) {
+    int* sock = (int*)data;
+
+    time_t currentTime;
+    struct tm *timeinfo;
+    time_t previousTime = 0;
+
+    while (1) {
+        currentTime = time(NULL);
+        timeinfo = localtime(&currentTime);
+
+        if (currentTime != previousTime) {
+            dateprint(*sock);
+        }
+
+        previousTime = currentTime;
+
+        sleep(1);
+    }
+    dateprint(sock);
+}
+
+void* listenActivateButton(void* data){
+    int *sock = (int*)data;
+    int str_len;
+    char msg[6];
+    while(1){
+        str_len = read(*clnt_sock2, msg, sizeof(msg));
+        if(msg[0]=="1"){
+            dateprint(*sock);
+        }
+    }
+}
 
 int main(int argc, char* argv[]) {
-    pthread_t p_thread, threadfordate;
+    pthread_t p_thread, threadfordate, threadfordatebutton;
     int thr_id;
     int status;
 
@@ -187,6 +218,11 @@ int main(int argc, char* argv[]) {
         perror("thread create error : ");
         exit(0);
     }
+    thr_id = pthread_create(&threadfordatebutton, NULL, listenActivateButton, (void*)&clnt_sock2);
+    if (thr_id < 0) {
+        perror("thread create error : ");
+        exit(0);
+    }
     //main logic - Reading Temperature, Pressure from Sensor
     while (1)
     {
@@ -226,5 +262,6 @@ int main(int argc, char* argv[]) {
     }
     //pthread_join(p_thread, (void**)&status);
     //pthread_join(threadfordate, (void**)&status);
+    //pthread_join(threadfordatebutton, (void**)&status);
 }
 

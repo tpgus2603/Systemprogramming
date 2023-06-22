@@ -8,8 +8,8 @@
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <pthread.h>
-#include"preSensor.h"
-#include"temsor.h"
+#include "preSensor.h"
+#include "temsor.h"
 
 
 #define IN 0
@@ -57,7 +57,7 @@ void* pressure_worker(void* sock){
 }
 
 void *tem_worker(void *sock){
-     int socket_fd=(int)sock;
+    int socket_fd=(int)sock;
     while(1){
     int t_value;
     char buf[5];
@@ -106,6 +106,8 @@ int main(int argc, char* argv[]) {
 	thr_id=pthread_create(&pressure_thd, NULL, pressure_worker, (void*)sock);
   if(thr_id<0)
    error_handling("thread() error");
+
+  
   pthread_join( pressure_thd, NULL );
 
 

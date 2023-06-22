@@ -5,11 +5,11 @@
 #include "temsor.h"
 
 #define MAX_TIMINGS	85        // 최대 신호 추출 개수
-#define DHT_PIN		22	      // GPIO로 사용할 핀 번호
+      // GPIO로 사용할 핀 번호
 
 int data[5] = { 0, 0, 0, 0, 0 };       // 온습도 및 checksum 데이터 저장용 변수 배열
 
-void read_dht_data(int pin)                    // dht데이터 읽기 함수
+int read_dht_data(int pin)                    // dht데이터 읽기 함수
 {
     
 	uint8_t laststate	= HIGH;          // DHT핀의 상태 저장용 변수(현재 신호가 HIGH인지 LOW인지 확인하기 위한 용도)
@@ -64,18 +64,18 @@ void read_dht_data(int pin)                    // dht데이터 읽기 함수
      */
 	if ( (j >= 40) && (data[4] == ( (data[0] + data[1] + data[2] + data[3]) & 0xFF) ) )
 	{        //에러가 없으면 습도 및 온도 출력
-		printf( "Temperature = %d.%d C\n", data[2], data[3]);
-        delay(982);
-	}else  {
-	;      //에러 발생시 Data not good 메시지 출력
-	}
+		//printf( "Temperature = %d.%d C\n", data[2], data[3]);
+        printf("%d.%d\n",data[2],data[3]);
+		int temp=(data[2]*10+data[3]);
+		return temp;
+	}else read_dht_data(pin);    //else recursive call
+	
 }
 
 int tempStart(int pin){
       if ( wiringPiSetupGpio() == -1 )    //라즈베리파이의 BCM GPIO 핀번호를 사용하겠다고 선언
 		exit( 1 );
-        while(1){
-            read_dht_data(pin);
-        }
-        return 0;
+    return read_dht_data(pin);
+    
 }
+
