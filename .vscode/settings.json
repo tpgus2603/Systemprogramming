@@ -38,7 +38,8 @@
   "files.associations": {
     "stdlib.h": "c",
     "types.h": "c",
-    "stdio.h": "c"
+    "stdio.h": "c",
+    "typeinfo": "c"
   },
   "C_Cpp_Runner.msvcWarnings": [
     "/W4",

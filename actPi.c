@@ -15,9 +15,9 @@
 #include <sys/ioctl.h>
 #include <stdint.h>
 #include "gpio.h"
-#include"lcd.h"
-#include"led.h"
-#include"pwm.h"
+#include "lcd.h"
+#include "led.h"
+#include "pwm.h"
 
 #define IN 0
 #define OUT 1
@@ -177,8 +177,8 @@ int main(int argc, char* argv[]) {
                 if (thr_id < 0) error_handling("thread create error:");
                 char name[16];
                 str_len = read(sock, name, sizeof(name));
-                lcdStart(LINE1, "Data is near...");
-                lcdStart(LINE2, name);
+                lcdStart(LINE1, fd, "Data is near...");
+                lcdStart(LINE2, fd, name);
                 delay(5000);
                 ClrLcd();
                 name[0] = '\0';

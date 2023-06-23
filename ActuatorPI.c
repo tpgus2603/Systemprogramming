@@ -31,8 +31,11 @@
 #define LED2 27
 #define LED3 22
 #define LED4 23
-#define BIN 20
-#define BOUT 21
+#define BIN 6
+#define BOUT 13
+#define B2IN 19
+#define B2OUT 26
+#define BTNPERIOD 200000
 
 // Define some device parameters
 #define I2C_ADDR   0x27 // I2C device address
@@ -69,6 +72,8 @@ void signalHandler(){
     GPIOUnexport(LED4);
     GPIOUnexport(BIN);
     GPIOUnexport(BOUT);
+    GPIOUnexport(B2IN);
+    GPIOUnexport(B2OUT);
     exit(1);
 }
 void error_handling(char* message) {
@@ -184,14 +189,24 @@ void buzzerOn(){
 void buzzerOff(){
     PWMWriteDutyCycle(BUZ,0);
 }
-void buzzerPattern(int i){
+void buzzerPattern1(int i){
     printf("buzpattern\n");
     while(i--){
         buzzerOn();
-        usleep(500000);
+        usleep(100000);
         buzzerOff();
-        usleep(500000);
+        usleep(100000);
     }   
+}
+
+void buzzerPattern2(int i) {   //온도 높은 경우 스피커 강한세기 삐이삐이삐이삐이삐이 5번
+    printf("buzpatter2\n");
+    while (i--) {
+        buzzerOn();
+        usleep(500 * 1000); //1초간 
+        buzzerOff();
+        usleep(500 * 1000);
+    }
 }
 
 void ledOn(int led){
@@ -208,9 +223,14 @@ void ledOff(int led){
     }
 }
 
-void *buzthread(){
+void *buzthread1(){
     printf("buzthread\n");
-    buzzerPattern(3);    
+    buzzerPattern1(5);    
+}
+
+void* buzthread2() {
+    printf("buzthread2\n");
+    buzzerPattern2(3);
 }
 
 void *ledthread(void* data){
@@ -222,8 +242,12 @@ void *ledthread(void* data){
     ledOff(*led);
 }
 
-void sendsignal(int *sock){
+void send_datesignal(int *sock){
     char sig[100] = "!";
+    write(*sock, sig, sizeof(sig));
+}
+void send_passsignal(int *sock){
+    char sig[100] = "?";
     write(*sock, sig, sizeof(sig));
 }
 
@@ -232,9 +256,16 @@ void *btnthread(void* data){
     do{
         if(-1==GPIOWrite(BOUT,1))
             exit(1);
+        if(-1==GPIOWrite(B2OUT,1))
+            exit(1);
         if(GPIORead(BIN)==0){
             printf("button clicked\n");
-            sendsignal(sock);
+            send_datesignal(sock);
+            usleep(1000000);
+        }
+        if(GPIORead(B2IN)==0){
+            printf("button clicked 2\n");
+            send_passsignal(sock);
             usleep(1000000);
         }
     }while(1);
@@ -274,18 +305,18 @@ int main(int argc, char* argv[]) {
         error_handling("connect() error");
     
     PWMExport(BUZ);
-    PWMWritePeriod(BUZ, 200000); // lower number, higher sound!!
+    PWMWritePeriod(BUZ, BTNPERIOD); // lower number, higher sound!!
     PWMWriteDutyCycle(BUZ, 0);
     PWMEnable(0);
 
     if (-1 == GPIOExport(LED1) || -1 == GPIOExport(LED2) || -1 == GPIOExport(LED3) || -1 == GPIOExport(LED4))
         return(1);
-    if (-1 == GPIOExport(BIN) || -1 == GPIOExport(BOUT))
+    if (-1 == GPIOExport(BIN) || -1 == GPIOExport(BOUT)||-1 == GPIOExport(B2IN) || -1 == GPIOExport(B2OUT))
         return(1);
     usleep(500000);
     if (-1 == GPIODirection(LED1, OUT) || -1 == GPIODirection(LED2, OUT) || -1 == GPIODirection(LED3, OUT) || -1 == GPIODirection(LED4, OUT))
         return(2);
-    if (-1 == GPIODirection(BIN, IN) || -1 == GPIODirection(BOUT, OUT))
+    if (-1 == GPIODirection(BIN, IN) || -1 == GPIODirection(BOUT, OUT)||-1 == GPIODirection(B2IN, IN) || -1 == GPIODirection(B2OUT, OUT))
         return(2);
 
     if (wiringPiSetup() == -1) exit(1);
@@ -306,19 +337,20 @@ int main(int argc, char* argv[]) {
         perror("thread create error : ");
         exit(0);
     }
-
+    
     while (1) {
 
         printf("Waiting....\n");
         str_len = read(sock, msg, sizeof(msg));
         printf("%s\n", msg);
+        
         usleep(100000);
 
         if(msg[0]=='0'){
             if(msg[1]=='1'){//Door is open
                 int led = LED1;
 
-                thr_id = pthread_create(&pthread[0], NULL, buzthread, NULL);
+                thr_id = pthread_create(&pthread[0], NULL, buzthread1, NULL);
                 printf("Door is open\n");
                 if (thr_id < 0) {
                     perror("thread create error : ");
@@ -336,12 +368,7 @@ int main(int argc, char* argv[]) {
             else if(msg[1]=='2'){//Temparature is warn
                 int led = LED2;
                 printf("Temp is warning\n");
-                thr_id = pthread_create(&pthread[2], NULL, buzthread, NULL);
 
-                if (thr_id < 0) {
-                    perror("thread create error : ");
-                    exit(0);
-                }
                 thr_id = pthread_create(&pthread[3], NULL, ledthread, (void*)&led);
 
                 if (thr_id < 0) {
@@ -352,7 +379,7 @@ int main(int argc, char* argv[]) {
             }else if(msg[1]=='3'){//
                 int led = LED3;
                 printf("Temp is critical\n");
-                thr_id = pthread_create(&pthread[4], NULL, buzthread, NULL);
+                thr_id = pthread_create(&pthread[4], NULL, buzthread2, NULL);
 
                 if (thr_id < 0) {
                     perror("thread create error : ");
@@ -381,10 +408,30 @@ int main(int argc, char* argv[]) {
                 str_len = read(sock, name, sizeof(name));
 
                 lcdLoc(LINE1);
-                typeln("Date is near...");
+                typeln("Deadline Foods");
                 lcdLoc(LINE2);
                 typeln(name);
-                delay(5000);
+                delay(2000);
+                ClrLcd();
+                name[0]='\0';
+            }else if(msg[1]=='5'){
+                int led = LED4;
+                printf("Date is passed.\n");
+                thr_id = pthread_create(&pthread[6], NULL, ledthread, (void*)&led);
+
+                if (thr_id < 0) {
+                    perror("thread create error : ");
+                    exit(0);
+                }
+
+                char name[16];
+                str_len = read(sock, name, sizeof(name));
+
+                lcdLoc(LINE1);
+                typeln("Expired Foods");
+                lcdLoc(LINE2);
+                typeln(name);
+                delay(2000);
                 ClrLcd();
                 name[0]='\0';
             }

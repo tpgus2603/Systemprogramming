@@ -4,7 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include<string.h>
+#include <string.h>
+#include "pwm.h"
 
 #define VALUE_MAX2 256
 #define BUFFER_MAX 3

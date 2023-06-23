@@ -10,7 +10,6 @@
 #include <signal.h>
 #include <time.h>
 #include <pthread.h>
-
 #include <wiringPiI2C.h>
 #include <wiringPi.h>
 
@@ -107,6 +106,11 @@ void sendsignal_timewarn(int sock) {
     write(sock, buf, sizeof(buf));
     return;
 }
+void sendsignal_timepass(int sock) {
+    char buf[100] = "05";
+    write(sock, buf, sizeof(buf));
+    return;
+}
 
 //Timer Thread for Open Door Api
 int t = 0;
@@ -168,46 +172,128 @@ void dateprint(int *sock) {
             sendsignal_timewarn(*sock);
             usleep(500000);
             write(*sock, ptr1, 16);
-            sleep(5);
+            sleep(2);
             datebuffer[0] = '\0';
             ptr1[0] = '\0';
             ptr2[0] = '\0';
         }
     }
 }
+
+void passprint(int *sock) {
+    FILE* file_pointer;
+    file_pointer = fopen("/home/user/date.txt", "r");
+    char buffer[32];
+
+    int year, month, day;
+    int fyear, fmonth, fday;
+    char cyear[10], cmonth[10], cday[10];
+    time_t t;
+    struct tm* tm;
+    char comparedate[10] = { 0, };
+    char* doubledot = ".";
+
+    char* ptr1, * ptr2;
+
+    while (1) {
+
+        fgets(buffer, 32, file_pointer);
+        if (feof(file_pointer) != 0) {
+            fclose(file_pointer);
+            return;
+        }
+
+        t = time(NULL);
+        tm = localtime(&t);
+        year = tm->tm_year + 1900;
+        month = tm->tm_mon + 1;
+        day = tm->tm_mday;
+
+
+        //printf("Time : %s\n",datebuffer);
+
+        ptr1 = strtok(buffer, ",");
+        ptr2 = strtok(NULL, "\n"); //유통기한
+        
+        //food year, month, date
+        fyear = atoi(strtok(ptr2,"."));
+        fmonth = atoi(strtok(NULL,"."));
+        fday = atoi(strtok(NULL,"."));
+        //printf("Name :%s, Date :%s\n",ptr1,ptr2);
+        //printf("%s, %s\n",datebuffer,ptr2);
+        //printf("%d, %d\n",sizeof(datebuffer),sizeof(ptr2));
+
+        if (year>fyear || (fyear==year && month > fmonth) || (fyear==year && fmonth==month && day>fday)) {//If Date<Today, send signal
+            //printf("%s's Date is near.\n",ptr1);
+            sendsignal_timepass(*sock);
+            usleep(500000);
+            write(*sock, ptr1, 16);
+            sleep(2);
+  
+            ptr1[0] = '\0';
+            ptr2[0] = '\0';
+        }
+    }
+}
+
+
 //Date is near Thread in 24hours
 void* notenoughDate(void* data) {
+
     int* sock = (int*)data;
 
     time_t currentTime;
-    struct tm* timeinfo;
-    time_t previousTime = 0;
+    time_t base=0;
+    struct tm* timeinfo, *previnfo;
+    previnfo = localtime(&base);
+    printf("prev = %d\n",previnfo->tm_year);
+    int year, month, day, hours;
+    int pyear, pmonth ,pday;
 
+    pyear = previnfo->tm_year + 1900;
+    pmonth = previnfo->tm_mon + 1;
+    pday = previnfo->tm_mday;
     while (1) {
         currentTime = time(NULL);
         timeinfo = localtime(&currentTime);
+        
+        year = timeinfo->tm_year + 1900;
+        month = timeinfo->tm_mon + 1;
+        day = timeinfo->tm_mday;
+        hours = timeinfo->tm_hour;
 
-        if (currentTime != previousTime) {
+        if(year!=pyear || month!=pmonth || day!=pday){
+            dateprint(sock);
+            pyear=year;
+            pmonth=month;
+            pday=day;
+        }else if(hours==18){
             dateprint(sock);
         }
 
-        previousTime = currentTime;
 
+        //dateprint(sock);
         sleep(1);
     }
-    dateprint(sock);
 }
 
 void* listenActivateButton(void* data) {
     int* sock = (int*)data;
     int str_len;
     char msg[6];
+
     while (1) {
         str_len = read(*sock, msg, sizeof(msg));
-        if (msg[0] == '1') {
+        if (msg[0] == '!') {
+
             dateprint(sock);
         }
+        if(msg[0]=='?'){
+            passprint(sock);
+        }
     }
+
+    
 }
 
 int main(int argc, char* argv[]) {
@@ -312,10 +398,11 @@ int main(int argc, char* argv[]) {
 
             temp = atoi(temprec);
             printf("temp= %d\n", temp);
-            if (temp >= 300 && temp < 320)
+            if (temp >= 50 && temp < 80)
                 sendsignal_uptemp_warn(clnt_sock2);
-            if (temp > 320)
+            if (temp > 80)
                 sendsignal_uptemp_critical(clnt_sock2);
+            
             // led panel show
             // if temp > 5c give signal to actuator pi
         }
@@ -323,10 +410,13 @@ int main(int argc, char* argv[]) {
             temprec = strtok(NULL, "=");
             pres = atoi(temprec);
             printf("pres= %d\n", pres);
-            if (pres > 600) {
+            if (pres) {
                 t = 0;
             }
             // timer reset
+        }
+        for(int i=0;i<6;i++){
+            msg[i]='\0';
         }
         //write(clnt_sock2,msg,sizeof(msg));
     }
