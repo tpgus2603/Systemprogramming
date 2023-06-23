@@ -401,6 +401,7 @@ int main(int argc, char* argv[]) {
             if (temp >= 50 && temp < 80)
                 sendsignal_uptemp_warn(clnt_sock2);
             if (temp > 80)
+                sleep(1);
                 sendsignal_uptemp_critical(clnt_sock2);
             
             // led panel show

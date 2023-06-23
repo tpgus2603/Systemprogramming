@@ -35,7 +35,7 @@
 #define BOUT 13
 #define B2IN 19
 #define B2OUT 26
-#define BTNPERIOD 200000
+#define BTNPERIOD 400000
 
 // Define some device parameters
 #define I2C_ADDR   0x27 // I2C device address
@@ -184,7 +184,7 @@ static int PWMWriteDutyCycle(int pwmnum, int value) {
 
 //냉장고 문열림이랑 온도비정상이랑 스피커 출력을 같게 하면 됨.
 void buzzerOn(){
-    PWMWriteDutyCycle(BUZ,100000);
+    PWMWriteDutyCycle(BUZ,150000);
 }
 void buzzerOff(){
     PWMWriteDutyCycle(BUZ,0);
@@ -225,7 +225,7 @@ void ledOff(int led){
 
 void *buzthread1(){
     printf("buzthread\n");
-    buzzerPattern1(5);    
+    buzzerPattern1(10);    
 }
 
 void* buzthread2() {
@@ -272,7 +272,6 @@ void *btnthread(void* data){
 }
 
 void (*breakCapture)(int);
-
 
 int main(int argc, char* argv[]) {
 
@@ -337,7 +336,7 @@ int main(int argc, char* argv[]) {
         perror("thread create error : ");
         exit(0);
     }
-    
+
     while (1) {
 
         printf("Waiting....\n");
@@ -406,6 +405,7 @@ int main(int argc, char* argv[]) {
 
                 char name[16];
                 str_len = read(sock, name, sizeof(name));
+                printf("Food name = %s\n",name);
 
                 lcdLoc(LINE1);
                 typeln("Deadline Foods");
