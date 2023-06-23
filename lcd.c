@@ -3,15 +3,10 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
 #include <wiringPiI2C.h>
 #include <wiringPi.h>
-#include <sys/types.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <string.h>
-
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include "lcd.h"
@@ -30,51 +25,46 @@
 
 #define ENABLE  0b00000100 // Enable bit
 
-int fd;
 
-void fdInit(int value) {
-    fd = value;
-}
-
-void typeFloat(float myFloat) {
+void typeFloat(float myFloat,int fd) {
     char buffer[20];
     sprintf(buffer, "%4.2f", myFloat);
-    typeln(buffer);
+    typeln(buffer,fd);
 }
 
 // int to string
-void typeInt(int i) {
+void typeInt(int i,int fd) {
     char array1[20];
     sprintf(array1, "%d", i);
-    typeln(array1);
+    typeln(array1,fd);
 }
 
 // clr lcd go home loc 0x80
-void ClrLcd(void) {
-    lcd_byte(0x01, LCD_CMD);
-    lcd_byte(0x02, LCD_CMD);
+void ClrLcd(int fd) {
+    lcd_byte(0x01, LCD_CMD,fd);
+    lcd_byte(0x02, LCD_CMD,fd);
 }
 
 // go to location on LCD
-void lcdLoc(int line) {
-    lcd_byte(line, LCD_CMD);
+void lcdLoc(int line,int fd) {
+    lcd_byte(line, LCD_CMD,fd);
 }
 
 // out char to LCD at current position
-void typeChar(char val) {
+void typeChar(char val,int fd) {
 
-    lcd_byte(val, LCD_CHR);
+    lcd_byte(val, LCD_CHR,fd);
 }
 
 
 // this allows use of any size string
-void typeln(const char* s) {
+void typeln(const char* s,int fd) {
 
-    while (*s) lcd_byte(*(s++), LCD_CHR);
+    while (*s) lcd_byte(*(s++), LCD_CHR,fd);
 
 }
 
-void lcd_byte(int bits, int mode) {
+void lcd_byte(int bits, int mode,int fd) {
 
     //Send byte to data pins
     // bits = the data
@@ -87,14 +77,14 @@ void lcd_byte(int bits, int mode) {
 
     // High bits
     wiringPiI2CReadReg8(fd, bits_high);
-    lcd_toggle_enable(bits_high);
+    lcd_toggle_enable(bits_high,fd);
 
     // Low bits
     wiringPiI2CReadReg8(fd, bits_low);
-    lcd_toggle_enable(bits_low);
+    lcd_toggle_enable(bits_low,fd);
 }
 
-void lcd_toggle_enable(int bits) {
+void lcd_toggle_enable(int bits,int fd) {
     // Toggle enable pin on LCD display
     delayMicroseconds(500);
     wiringPiI2CReadReg8(fd, (bits | ENABLE));
@@ -104,20 +94,19 @@ void lcd_toggle_enable(int bits) {
 }
 
 
-void lcd_init() {
+void lcd_init(int fd) {
     // Initialise display
-    lcd_byte(0x33, LCD_CMD); // Initialise
-    lcd_byte(0x32, LCD_CMD); // Initialise
-    lcd_byte(0x06, LCD_CMD); // Cursor move direction
-    lcd_byte(0x0C, LCD_CMD); // 0x0F On, Blink Off
-    lcd_byte(0x28, LCD_CMD); // Data length, number of lines, font size
-    lcd_byte(0x01, LCD_CMD); // Clear display
+    lcd_byte(0x33, LCD_CMD,fd); // Initialise
+    lcd_byte(0x32, LCD_CMD,fd); // Initialise
+    lcd_byte(0x06, LCD_CMD,fd); // Cursor move direction
+    lcd_byte(0x0C, LCD_CMD,fd); // 0x0F On, Blink Off
+    lcd_byte(0x28, LCD_CMD,fd); // Data length, number of lines, font size
+    lcd_byte(0x01, LCD_CMD,fd); // Clear display
     delayMicroseconds(500);
 }
 
 void lcdStart(int line, int fd, char* string) {
-    fdInit(fd);
-    lcdLoc(line);
-    typeln(string);
+    lcdLoc(line,fd);
+    typeln(string,fd);
 }
 
