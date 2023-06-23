@@ -399,10 +399,13 @@ int main(int argc, char* argv[]) {
             temp = atoi(temprec);
             printf("temp= %d\n", temp);
             if (temp >= 50 && temp < 80)
+                sleep(1);
                 sendsignal_uptemp_warn(clnt_sock2);
-            if (temp > 80)
+            if (temp > 80){
                 sleep(1);
                 sendsignal_uptemp_critical(clnt_sock2);
+            }
+
             
             // led panel show
             // if temp > 5c give signal to actuator pi

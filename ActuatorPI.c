@@ -193,9 +193,9 @@ void buzzerPattern1(int i){
     printf("buzpattern\n");
     while(i--){
         buzzerOn();
-        usleep(100000);
+        usleep(500000);
         buzzerOff();
-        usleep(100000);
+        usleep(500000);
     }   
 }
 
@@ -203,9 +203,9 @@ void buzzerPattern2(int i) {   //온도 높은 경우 스피커 강한세기 삐
     printf("buzpatter2\n");
     while (i--) {
         buzzerOn();
-        usleep(500 * 1000); //1초간 
+        usleep(100 * 1000); //1초간 
         buzzerOff();
-        usleep(500 * 1000);
+        usleep(100 * 1000);
     }
 }
 
@@ -225,12 +225,12 @@ void ledOff(int led){
 
 void *buzthread1(){
     printf("buzthread\n");
-    buzzerPattern1(10);    
+    buzzerPattern1(3);    
 }
 
 void* buzthread2() {
     printf("buzthread2\n");
-    buzzerPattern2(3);
+    buzzerPattern2(10);
 }
 
 void *ledthread(void* data){
@@ -306,7 +306,7 @@ int main(int argc, char* argv[]) {
     PWMExport(BUZ);
     PWMWritePeriod(BUZ, BTNPERIOD); // lower number, higher sound!!
     PWMWriteDutyCycle(BUZ, 0);
-    PWMEnable(0);
+    PWMEnable(BUZ);
 
     if (-1 == GPIOExport(LED1) || -1 == GPIOExport(LED2) || -1 == GPIOExport(LED3) || -1 == GPIOExport(LED4))
         return(1);
