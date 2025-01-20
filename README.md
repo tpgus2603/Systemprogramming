@@ -1,4 +1,4 @@
-23-1 시스템 프로그래밍 스마트냉장고 시스템
+시스템 프로그래밍- 라즈베리 파이와 센서를 활용한 스마트냉장고 시스템
 -
 **2. 분석**
 **2.1 냉장고 기능 분석**
@@ -50,13 +50,4 @@ led를 점등시키는 신호를 액츄에이터 파이에 보낸다 만약 온�
 
 **실핼방법**
 센서파이에서는 “gcc -o Client1 SensorClient.c temsor.c preSensor.c -lpwiringPi -lpthread”를 터미널에 입력하여
-Client 프로그램을 만들고 ./Client1 포트번호 이런 방식으로 두번째 인자로 서버에서 생성한
-포트번호를 입력하여 해당 포트의 서버에 연결
-
-액츄에이터 파이에서는 "gcc -o Client2 ActuatorClient.c gpio.c pwm.c lcd.c -lwiringPi -lpthread"를 터미널에 입력하여 Client2 
-프로그램을 만들고 ./Client2 포트번호 이런 방식으로 두번째 인자로 서버에서 생성한
-포트번호를 입력하여 해당 포트의 서버에 연결
-
-
-세부 프로젝트 제안서
-[시스템프로그래밍 12조 프로젝트 최종 보고서.pdf](https://github.com/user-attachments/files/16409631/12.pdf)
+Client 프로그램을 만들고 ./Client1 포트번호 이런 방식으로 두번째 결
